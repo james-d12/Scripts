@@ -1,23 +1,72 @@
-Function Get-Playlists {
-    Import-Csv "Playlists.csv" -Delimiter "," | Foreach-Object -Parallel { 
-        $Name = $_.Name
-        $Url = $_.Url 
-    
-        New-Item -Path "Music/$Name" -ItemType "directory"
+[CmdletBinding()]
+Param (
+    [Parameter(
+        Mandatory = $true, 
+        ValueFromPipeline = $true, 
+        ValueFromPipelineByPropertyName = $true, 
+        HelpMessage = "The csv file containing the list of playlists to download.")]
+    [ValidateNotNullOrEmpty()]
+    [ValidateScript({
+            if ($_ -notmatch '\.csv$') {
+                throw "The Playlist File must end with '.csv'"
+            }
+            if (-not (Test-Path -Path $_ -PathType Leaf)) {
+                throw "The specified path does not exist."
+            }
+            $true
+        })]
+    [String]$PlaylistFile,
 
-        $DownloadArchive = "Music/$Name/$Name.archive.log"
-        $Output = "Music/$Name/$Name.output.log"
+    [Parameter(
+        Mandatory = $true, 
+        ValueFromPipeline = $true, 
+        ValueFromPipelineByPropertyName = $true, 
+        HelpMessage = "The output directory to store files to.")]
+    [String]$OutputFolder,
+
+    [Parameter(
+        Mandatory = $true,
+        ValueFromPipeline = $true,
+        ValueFromPipelineByPropertyName = $true,
+        HelpMessage = "The file type to download as."
+    )]
+    [ValidateSet("aac", "alac", "flac", "m4a", "mp3", "opus", "vorbis", "wav")]
+    [String]$FileType
+)
+
+Begin {
+    Write-Host -ForegroundColor Green "Beginning download of files. $PlaylistFile $FileType"
+
+    if (-not (Test-Path -Path $OutputFolder)) {
+        Write-Host -ForegroundColor Yellow "Creating new output directory $OutputFolder."
+        New-Item -Path $OutputFolder -ItemType Directory
+    }
+}
+
+Process {
+    $PlaylistData = Import-Csv $PlaylistFile -Delimiter ","
+    foreach ($Playlist in $PlaylistData) {
+        $Name = $Playlist.Name
+        $Url = $Playlist.Url 
+
+        $CurrentTime = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
+        $MusicDirectory = "$OutputFolder/$CurrentTime/$Name"   
+        $MusicArchiveLog = "$MusicDirectory/$Name.archive.log"
+        $MusicOutputLog = "$MusicDirectory/$Name.output.log"
+    
+        New-Item -Path $MusicDirectory -ItemType Directory
+
         yt-dlp $Url `
             --quiet `
             --verbose `
             --audio-quality 0 `
-            --audio-format opus `
+            --audio-format $FileType `
             --extract-audio `
             --continue `
             --force-ipv4 `
             --ignore-errors `
             --no-overwrites `
-            --download-archive $DownloadArchive `
+            --download-archive $MusicArchiveLog `
             --add-metadata `
             --parse-metadata "%(title)s:%(meta_title)s" `
             --parse-metadata "%(uploader)s:%(meta_artist)s" `
@@ -29,11 +78,13 @@ Function Get-Playlists {
             --fragment-retries 20 `
             --concurrent-fragments 5 `
             --match-filter "!is_live & !live" `
-            --output "Music/$Name/%(title)s.%(ext)s" `
+            --output "$MusicDirectory/%(title)s.%(ext)s" `
             --throttled-rate 100K `
-            --ffmpeg-location "C:\Apps\FFMPEG\bin\ffmpeg.exe" `
-            2>&1 | Tee-Object $Output
+            --ffmpeg-location ".\ffmpeg.exe" `
+            2>&1 | Tee-Object $MusicOutputLog
     }
 }
 
-Get-Playlists
+End {
+    Write-Host -ForegroundColor Green "Download of files has finished."
+}
