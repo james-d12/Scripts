@@ -36,11 +36,6 @@ Param (
 
 Begin {
     Write-Host -ForegroundColor Green "Beginning download of files. $PlaylistFile $FileType"
-
-    if (-not (Test-Path -Path $OutputFolder)) {
-        Write-Host -ForegroundColor Yellow "Creating new output directory $OutputFolder."
-        New-Item -Path $OutputFolder -ItemType Directory
-    }
 }
 
 Process {
