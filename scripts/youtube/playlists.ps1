@@ -49,8 +49,7 @@ Process {
         $Name = $Playlist.Name
         $Url = $Playlist.Url 
 
-        $CurrentTime = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
-        $MusicDirectory = "$OutputFolder/$CurrentTime/$Name"   
+        $MusicDirectory = "$OutputFolder/$Name"   
         $MusicArchiveLog = "$MusicDirectory/$Name.archive.log"
         $MusicOutputLog = "$MusicDirectory/$Name.output.log"
     
