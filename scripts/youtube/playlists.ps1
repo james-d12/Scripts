@@ -34,11 +34,33 @@ Param (
     [String]$FileType
 )
 
-Begin {
-    Write-Host -ForegroundColor Green "Beginning download of files. $PlaylistFile $FileType"
-}
+try {
 
-Process {
+    Write-Host "📋 Checking if ffmpeg is installed..."
+    
+    $filteredResult = (winget list) | Where-Object { $_ -like "*ffmpeg*"}
+
+    if ($filteredResult.Count -gt 0) {
+        Write-Host "✔️ Found ffmpeg package."
+    } else {
+        Write-Host "❌ Could not find ffmpeg package, attempting to install."
+        winget install -e --id Gyan.FFmpeg
+        exit 1
+    }
+
+    Write-Host "📋 Checking if yt-dlp is installed..."
+    
+    $filteredResult = (winget list) | Where-Object { $_ -like "*yt-dlp*"}
+
+    if ($filteredResult.Count -gt 0) {
+        Write-Host "✔️ Found yt-dlp package."
+    } else {
+        Write-Host "❌ Could not find yt-dlp package, attempting to install."
+        winget install -e --id yt-dlp.yt-dlp
+        exit 1
+    }
+
+    Write-Host -ForegroundColor Green "Beginning download of files. $PlaylistFile $FileType"
     $PlaylistData = Import-Csv $PlaylistFile -Delimiter ","
     foreach ($Playlist in $PlaylistData) {
         $Name = $Playlist.Name
@@ -52,7 +74,7 @@ Process {
 
         yt-dlp $Url `
             --quiet `
-            --verbose `
+            --progress `
             --audio-quality 0 `
             --audio-format $FileType `
             --extract-audio `
@@ -74,11 +96,12 @@ Process {
             --match-filter "!is_live & !live" `
             --output "$MusicDirectory/%(title)s.%(ext)s" `
             --throttled-rate 100K `
-            --ffmpeg-location ".\ffmpeg.exe" `
+            #--ffmpeg-location ".\ffmpeg.exe" `
             2>&1 | Tee-Object $MusicOutputLog
     }
-}
-
-End {
+    
     Write-Host -ForegroundColor Green "Download of files has finished."
+} catch {
+    Write-Host "An error occurred whilst trying to download playlists: $_"
+    exit 1
 }
